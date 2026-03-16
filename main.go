@@ -1,8 +1,20 @@
+// Package main provides a graphical user interface for selecting, unzipping, and merging ZIP files.
+// The program utilizes fyne.io for creating the GUI and zenity for file/folder dialogs.
+// The main purpose of this tool is to allow users to simplify ZIP file management by combining multiple files.
+
 package main
 
 import (
 	"archive/zip"
 	"fmt"
+	"image/color"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -11,22 +23,21 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/ncruces/zenity"
-	"image/color"
-	"io"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
+// setFiles assigns the value of a string slice to a pointer.
+// This helper function is used to update lists of files selected by the user during execution.
 func setFiles(ptr *[]string, value []string) {
 	*ptr = value
 }
 
-// ZipFiles compresses a source directory/file into a destination zip file.
+// ZipFiles compresses a source directory or file into a destination ZIP file.
+// Parameters:
+// - source: Path to the directory or single file that will be zipped.
+// - destination: Path where the output ZIP file will be created.
+// Returns an error if there are issues creating/writing the ZIP file.
 func ZipFiles(source, destination string) error {
-	outFile, err := os.Create(destination) //
+	outFile, err := os.Create(destination)
 	if err != nil {
 		return err
 	}
@@ -87,7 +98,11 @@ func ZipFiles(source, destination string) error {
 	return err
 }
 
-// Unzip extracts a zip file to a destination directory.
+// Unzip extracts the contents of a ZIP file to a destination directory.
+// Parameters:
+// - src: Path to the source ZIP file to be extracted.
+// - dest: Path to the destination directory where files will be unpacked.
+// Returns a slice of extracted file names and an error if any issues occur.
 func Unzip(src, dest string) ([]string, error) {
 	files := []string{}
 
@@ -144,12 +159,13 @@ func Unzip(src, dest string) ([]string, error) {
 }
 
 func main() {
-	multiple := []string{}
-	targetFolderBinding := binding.NewString()
-	a := app.New()
-	w := a.NewWindow("Zip Merge")
-	green := color.NRGBA{R: 0, G: 180, B: 0, A: 255}
-	progress := widget.NewProgressBar()
+	// Initialize state variables and UI components.
+	multiple := []string{}                           // Stores the list of selected ZIP files.
+	targetFolderBinding := binding.NewString()       // Data binding for tracking the selected target folder.
+	a := app.New()                                   // Create the application instance.
+	w := a.NewWindow("Zip Merge")                    // Create the main application window.
+	green := color.NRGBA{R: 0, G: 180, B: 0, A: 255} // Define text color for the header.
+	progress := widget.NewProgressBar()              // Progress bar for visualizing the zipping/unzipping process.
 
 	targetFolderBinding.Set("Nenhuma pasta selecionada.")
 
@@ -160,20 +176,21 @@ func main() {
 	text.Alignment = fyne.TextAlignLeading
 	text.TextStyle = fyne.TextStyle{Italic: true, Bold: true}
 
+	// Create a button to select multiple ZIP files.
 	btnSelectFiles := widget.NewButton("Selecionar arquivo(s)", func() {
 		files, err := zenity.SelectFileMultiple(
-			zenity.Filename(``),
+			zenity.Filename(``), // Default filename or directory path.
 			zenity.FileFilters{
-				{"ZIP files", []string{"*.zip"}, false},
+				{"ZIP files", []string{"*.zip"}, false}, // Limit file selection to ZIP files.
 			})
 
 		if err != nil {
-			return
+			return // Exit if the user cancels or an error occurs.
 		}
 
-		setFiles(&multiple, files)
+		setFiles(&multiple, files) // Update the list of selected files.
 
-		log.Println("Arquivo selecionado: ", multiple)
+		log.Println("Arquivo selecionado: ", multiple) // Log the selected files for debugging.
 	})
 
 	btntargetFolderBinding := widget.NewButton("Selecionar pasta de destino", func() {
@@ -196,9 +213,10 @@ func main() {
 		log.Printf("Selected folder: %s\n", folderPath)
 	})
 
+	// Create a button to start the zipping/unzipping process.
 	btnProcess := widget.NewButton("Processar", func() {
 		go func() {
-			// Get the value from the binding
+			// Get the selected target folder path from the binding.
 			targetFolder, err := targetFolderBinding.Get()
 			if err != nil {
 				// Handle error if necessary
