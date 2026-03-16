@@ -261,6 +261,8 @@ func main() {
 
 			time.Sleep(time.Millisecond * 250)
 			progress.SetValue(float64(i))
+
+			a.SendNotification(fyne.NewNotification("Sucesso!", fmt.Sprintf("Seu arquivo final encontra-se em %s: \n%s", targetFolder, finalZip)))
 		}()
 	})
 
